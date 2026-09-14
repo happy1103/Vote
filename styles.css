@@ -238,3 +238,84 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rg
   .image-picker-grid { grid-template-columns: 1fr; }
   .brand h1 { font-size: 24px; }
 }
+
+.final-heading h2 { margin-bottom: 6px; }
+.final-heading p { margin-top: 0; }
+.final-round-list { display: grid; gap: 14px; margin-top: 18px; }
+.final-round-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fafbfc;
+}
+.final-round-card h3 { margin: 0 0 12px; font-size: 18px; }
+.final-choice-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 5px 0;
+  color: var(--muted);
+}
+.final-choice-line strong {
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 17px;
+}
+.tie-note {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a6518;
+  background: #fff1bf;
+  border-radius: 999px;
+  padding: 3px 7px;
+}
+.final-bar {
+  width: 100%;
+  height: 32px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #e8ebef;
+  margin: 14px 0 10px;
+}
+.final-bar-segment {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(255,255,255,.94);
+  transition: width .25s ease;
+}
+.final-legend { display: grid; gap: 7px; }
+.final-legend-item {
+  display: grid;
+  grid-template-columns: 12px 24px 1fr auto;
+  gap: 7px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.final-legend-item strong { color: var(--text); }
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.candidate-A { background: #5875d9; }
+.candidate-B { background: #d35f6f; }
+.candidate-C { background: #4e9a72; }
+.candidate-D { background: #b77d3d; }
+.candidate-E { background: #7d68b8; }
+.candidate-F { background: #4a909e; }
+.candidate-G { background: #8b6b55; }
+.choice-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 9px;
+  background: #eef1f4;
+  border: 1px solid var(--border);
+}

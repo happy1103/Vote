@@ -55,7 +55,7 @@ function statusText(room) {
   if (room.status === "finished") return "投票已結束";
   if (room.status === "setup") return "等待主持人開始";
   if (room.status === "voting") return `第 ${room.currentRound} 階段投票中`;
-  if (room.status === "results") return `第 ${room.currentRound} 階段結果`;
+  if (room.status === "results") return `第 ${room.currentRound} 階段已截止`;
   return "等待中";
 }
 
@@ -204,37 +204,27 @@ function renderVoting(roundNumber) {
 
 function renderResults(roundNumber) {
   const options = roundData.options || [];
-  const totals = roundData.totals || {};
-  const totalVotes = options.reduce((sum, id) => sum + (totals[id] || 0), 0);
-  const winner = roundData.winner;
-
   mainPanel.innerHTML = `
-    <h2 class="vote-title">第 ${roundNumber} 階段結果</h2>
-    <p class="vote-subtitle">共 ${totalVotes} 票</p>
-    <div id="resultList"></div>
-    <p class="center muted small">等待主持人進入下一階段……</p>`;
+    <h2 class="vote-title">第 ${roundNumber} 階段已截止</h2>
+    <p class="vote-subtitle">結果會在全部 5 個階段完成後一次公布</p>
+    <div id="closedCandidateList" class="candidates"></div>
+    <p class="center muted small" style="margin-top:14px">等待主持人進入下一階段……</p>`;
 
-  const list = mainPanel.querySelector("#resultList");
+  const list = mainPanel.querySelector("#closedCandidateList");
   options.forEach((id) => {
-    const wrap = document.createElement("div");
-    wrap.className = "candidate-result";
-    const card = renderCandidateCard(id, candidates[id], {
-      dim: !!winner && winner !== id,
-      selected: winner === id,
+    const selected = myVote?.choice === id;
+    list.appendChild(renderCandidateCard(id, candidates[id], {
+      selected,
+      dim: !!myVote && !selected,
       disabled: true,
-    });
-    const line = document.createElement("div");
-    line.className = "result-line";
-    line.innerHTML = `<span>${totals[id] || 0} 票</span><strong>${formatPercent(totals[id] || 0, totalVotes)}</strong>`;
-    wrap.append(card, line);
-    list.appendChild(wrap);
+    }));
   });
 }
 
 async function renderFinal() {
   mainPanel.classList.add("hidden");
   finalPanel.classList.remove("hidden");
-  finalPanel.innerHTML = `<p class="center muted">正在整理你的投票結果……</p>`;
+  finalPanel.innerHTML = `<p class="center muted">正在整理最終投票結果……</p>`;
 
   const myVotes = await getAllMyVotes(code, participantId);
   const rows = [];
@@ -250,44 +240,67 @@ async function renderFinal() {
       counted++;
       if (mine === data.winner) same++;
     }
-    rows.push({ round, mine, winner: data.winner });
+    rows.push({
+      round,
+      mine,
+      winner: data.winner,
+      options: data.options || [],
+      totals: data.totals || {},
+      tieBreak: !!data.tieBreak,
+    });
   }
 
   finalPanel.innerHTML = `
-    <div class="center">
-      <h2>全部投票完成</h2>
-      <p class="muted">你的選擇與每階段勝出結果一致 ${same} / ${counted}</p>
+    <div class="center final-heading">
+      <h2>最終全體結果</h2>
+      <p class="muted">你的選擇與各階段全體勝出結果一致 ${same} / ${counted}</p>
     </div>
-    <div id="comparisonList"></div>`;
+    <div id="finalRoundList" class="final-round-list"></div>`;
 
-  const list = finalPanel.querySelector("#comparisonList");
-  rows.forEach(({ round, mine, winner }) => {
-    const row = document.createElement("div");
-    row.className = "comparison-row";
-    row.innerHTML = `<strong>第 ${round} 階段</strong>`;
+  const list = finalPanel.querySelector("#finalRoundList");
+  rows.forEach((row) => list.appendChild(buildFinalRoundCard(row)));
+}
 
-    const grid = document.createElement("div");
-    grid.className = "comparison-grid";
-    grid.style.marginTop = "10px";
+function buildFinalRoundCard({ round, mine, winner, options, totals, tieBreak }) {
+  const card = document.createElement("section");
+  card.className = "final-round-card";
 
-    const mineCard = document.createElement("div");
-    mineCard.className = "comparison-card";
-    if (mine && candidates[mine]) {
-      mineCard.innerHTML = `<img src="${candidates[mine].imageData}" alt="你的選擇"><div class="caption">你的選擇</div>`;
-    } else {
-      mineCard.innerHTML = `<div class="panel center muted" style="box-shadow:none;margin:0">未投票</div><div class="caption">你的選擇</div>`;
-    }
+  const totalVotes = options.reduce((sum, id) => sum + (totals[id] || 0), 0);
+  const mineText = mine || "未投票";
+  const winnerText = winner || "—";
 
-    const winnerCard = document.createElement("div");
-    winnerCard.className = "comparison-card";
-    if (winner && candidates[winner]) {
-      winnerCard.innerHTML = `<img src="${candidates[winner].imageData}" alt="全體結果"><div class="caption">全體結果</div>`;
-    }
+  card.innerHTML = `
+    <h3>第 ${round} 階段</h3>
+    <div class="final-choice-line"><span>你的選擇</span><strong>${mine && candidates[mine] ? `<img class="choice-thumb" src="${candidates[mine].imageData}" alt="${mine}">` : ""}${mineText}</strong></div>
+    <div class="final-choice-line"><span>全體結果</span><strong>${winner && candidates[winner] ? `<img class="choice-thumb" src="${candidates[winner].imageData}" alt="${winner}">` : ""}${winnerText}${tieBreak ? '<small class="tie-note">同票抽選</small>' : ''}</strong></div>
+    <div class="final-bar" aria-label="第 ${round} 階段投票比例"></div>
+    <div class="final-legend"></div>`;
 
-    grid.append(mineCard, winnerCard);
-    row.appendChild(grid);
-    list.appendChild(row);
+  const bar = card.querySelector(".final-bar");
+  const legend = card.querySelector(".final-legend");
+
+  options.forEach((id) => {
+    const votes = totals[id] || 0;
+    const percent = totalVotes ? (votes / totalVotes) * 100 : 0;
+
+    const segment = document.createElement("div");
+    segment.className = `final-bar-segment candidate-${id}`;
+    segment.style.width = `${percent}%`;
+    segment.title = `${id}：${votes} 票（${formatPercent(votes, totalVotes)}）`;
+    if (percent >= 12) segment.textContent = id;
+    bar.appendChild(segment);
+
+    const item = document.createElement("div");
+    item.className = "final-legend-item";
+    item.innerHTML = `
+      <span class="legend-swatch candidate-${id}"></span>
+      <strong>${id}</strong>
+      <span>${votes} 票</span>
+      <span>${formatPercent(votes, totalVotes)}</span>`;
+    legend.appendChild(item);
   });
+
+  return card;
 }
 
 roomCodeInput.addEventListener("input", () => {

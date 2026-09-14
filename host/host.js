@@ -2,6 +2,7 @@ import {
   auth,
   db,
   ensureAuth,
+  makeParticipantId,
   roomExists,
   loadCandidateMap,
   subscribeRoom,
@@ -44,6 +45,7 @@ const newRoomBtn = document.querySelector("#newRoomBtn");
 const toast = document.querySelector("#toast");
 
 let uid = null;
+let participantId = null;
 let code = null;
 let roomData = null;
 let roundData = null;
@@ -177,8 +179,9 @@ async function createRoom() {
       });
     }
 
-    await setDoc(doc(db, "sessions", newCode, "participants", uid), {
-      uid,
+    await setDoc(doc(db, "sessions", newCode, "participants", participantId), {
+      uid: participantId,
+      role: "host",
       joinedAt: serverTimestamp(),
     });
 
@@ -225,7 +228,7 @@ function subscribeHostRound(roundNumber) {
   if (unsubRound) unsubRound();
   unsubRound = subscribeRound(code, roundNumber, async (snap) => {
     roundData = snap.exists() ? snap.data() : null;
-    myVote = await getMyVote(code, roundNumber, uid);
+    myVote = await getMyVote(code, roundNumber, participantId);
     renderHostControls();
     renderHostVote();
     refreshStats();
@@ -304,37 +307,29 @@ async function revealCurrentRound() {
   });
 
   const winners = pickWinnerFromTotals(options, totals);
-  if (winners.length > 1) {
-    renderTieChoice(winners, totals);
-    return;
+  let winner = winners[0];
+  const wasTie = winners.length > 1;
+
+  // 同票時，在主持人按下「顯示結果」的當下才隨機抽出晉級者。
+  // 使用瀏覽器的加密隨機來源，抽籤前主持人不會知道結果。
+  if (wasTie) {
+    const random = new Uint32Array(1);
+    crypto.getRandomValues(random);
+    winner = winners[random[0] % winners.length];
   }
-  await saveRoundResult(winners[0], totals);
+
+  await saveRoundResult(winner, totals, { wasTie, tied: winners });
+  if (wasTie) showToast("同票，已隨機抽出晉級者");
 }
 
-function renderTieChoice(tied, totals) {
-  tiePanel.classList.remove("hidden");
-  tiePanel.innerHTML = `
-    <div class="tie-box">
-      <strong>目前同票</strong>
-      <p class="small muted">為了讓流程可以繼續，請主持人指定其中一個作為晉級者。公開結果仍會顯示實際同票票數。</p>
-      <div id="tieChoices" class="stack"></div>
-    </div>`;
-  const box = tiePanel.querySelector("#tieChoices");
-  tied.forEach((id) => {
-    const btn = document.createElement("button");
-    btn.className = "btn secondary";
-    btn.textContent = `指定 ${id} 晉級（${totals[id] || 0} 票）`;
-    btn.onclick = () => saveRoundResult(id, totals);
-    box.appendChild(btn);
-  });
-}
-
-async function saveRoundResult(winner, totals) {
+async function saveRoundResult(winner, totals, { wasTie = false, tied = [] } = {}) {
   const round = roomData.currentRound;
   await updateDoc(doc(db, "sessions", code, "rounds", String(round)), {
     status: "results",
     winner,
     totals,
+    tieBreak: wasTie,
+    tiedCandidates: wasTie ? tied : [],
     revealedAt: serverTimestamp(),
   });
   await updateDoc(doc(db, "sessions", code), { status: "results" });
@@ -425,12 +420,12 @@ function renderHostVote() {
           else c.classList.add("is-selected");
         });
         try {
-          await castVote(code, roundNumber, id, uid);
-          myVote = { uid, round: roundNumber, choice: id };
+          await castVote(code, roundNumber, id, participantId, "host");
+          myVote = { uid: participantId, round: roundNumber, choice: id };
           showToast("主持人投票成功");
           refreshStats();
         } catch (err) {
-          myVote = await getMyVote(code, roundNumber, uid);
+          myVote = await getMyVote(code, roundNumber, participantId);
           if (!myVote) showToast("投票失敗，請再試一次");
         }
         voteInFlight = false;
@@ -482,6 +477,7 @@ createRoomBtn.addEventListener("click", createRoom);
   createPickers();
   const user = await ensureAuth();
   uid = user.uid;
+  participantId = makeParticipantId(uid, "host");
 
   const saved = localStorage.getItem("vote_host_room");
   if (saved) {

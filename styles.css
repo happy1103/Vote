@@ -339,3 +339,13 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rg
   flex: 0 0 auto;
 }
 .choice-empty { font-size: 14px; color: var(--muted); }
+
+
+/* Fixed result colors for rooms created with “default room”. */
+.default-room-results .candidate-A { background: #e53935; } /* red */
+.default-room-results .candidate-B { background: #8e44ad; } /* purple */
+.default-room-results .candidate-C { background: #3498db; } /* blue */
+.default-room-results .candidate-D { background: #f28c28; } /* orange */
+.default-room-results .candidate-E { background: #f2c94c; } /* yellow */
+.default-room-results .candidate-F { background: #8c8c8c; } /* gray */
+.default-room-results .candidate-G { background: #f28bb3; } /* pink */

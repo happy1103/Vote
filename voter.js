@@ -250,6 +250,7 @@ function renderResults(roundNumber) {
 async function renderFinal() {
   mainPanel.classList.add("hidden");
   finalPanel.classList.remove("hidden");
+  finalPanel.classList.toggle("default-room-results", !!roomData?.defaultRoom);
   finalPanel.innerHTML = `<p class="center muted">正在整理最終投票結果……</p>`;
 
   const myVotes = await getAllMyVotes(code, participantId);

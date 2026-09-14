@@ -112,6 +112,11 @@ function subscribeToRoom() {
 
       if (currentRoundSubscribed !== roomData.currentRound) {
         subscribeToRound(roomData.currentRound);
+      } else {
+        // 房間狀態（results → voting 等）可能會比 round 文件晚/早一步更新。
+        // 即使目前訂閱的是同一個 round，也要重新依最新 room 狀態渲染，
+        // 否則不同裝置在網路延遲下可能會停留在上一個畫面。
+        renderRound();
       }
     },
     (err) => {
@@ -123,17 +128,38 @@ function subscribeToRoom() {
 function subscribeToRound(roundNumber) {
   unsubRound?.();
   currentRoundSubscribed = roundNumber;
+  roundData = null;
   myVote = null;
+  mainPanel.innerHTML = `<p class="center muted">正在載入第 ${roundNumber} 階段……</p>`;
+
   unsubRound = subscribeRound(
     code,
     roundNumber,
     async (snap) => {
-      roundData = snap.exists() ? snap.data() : null;
-      myVote = await getMyVote(code, roundNumber, participantId);
+      // 若主持人剛切換階段，room 與 round 的即時更新到達順序可能不同。
+      // round 文件尚未到時先保持載入畫面；onSnapshot 之後會自動再觸發。
+      if (!snap.exists()) {
+        roundData = null;
+        mainPanel.innerHTML = `<p class="center muted">正在同步第 ${roundNumber} 階段……</p>`;
+        return;
+      }
+
+      roundData = snap.data();
+      try {
+        myVote = await getMyVote(code, roundNumber, participantId);
+      } catch (err) {
+        console.error("讀取個人投票失敗", err);
+        myVote = null;
+      }
       renderRound();
     },
     (err) => {
-      mainPanel.innerHTML = `<p class="center">無法讀取投票階段：${err.message}</p>`;
+      console.error("round subscription error", err);
+      mainPanel.innerHTML = `
+        <div class="center stack">
+          <p>無法讀取投票階段。</p>
+          <p class="muted small">請確認網路連線後重新整理頁面。</p>
+        </div>`;
     }
   );
 }

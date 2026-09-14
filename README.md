@@ -128,3 +128,7 @@ GitHub repository → Settings → Pages
 
 ## Default 房間圖片
 在 GitHub 專案根目錄建立 `images` 資料夾，放入 `A.jpg` 到 `G.jpg`。主持人頁的「建立 default 房間」會直接使用這 7 張圖片。
+
+## 2026-09-14 同步修正
+- 修正不同裝置在主持人切換到新投票階段時，因 Firestore `room` 與 `round` snapshot 到達順序不同，投票者畫面可能停留在上一階段／看不到投票區塊的問題。
+- 投票者現在會在每次 room 狀態更新時重新渲染；新階段尚在同步時會顯示載入提示。

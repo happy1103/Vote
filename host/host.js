@@ -502,7 +502,8 @@ async function renderHostFinal() {
   if (hostFinalRenderKey === renderKey && hostVotePanel.querySelector("#hostFinalRoundList")) return;
   hostFinalRenderKey = renderKey;
 
-  hostVotePanel.innerHTML = `<p class="center muted">正在整理最終投票結果……</p>`;
+  hostVotePanel.classList.toggle("default-room-results", !!roomData?.defaultRoom);
+    hostVotePanel.innerHTML = `<p class="center muted">正在整理最終投票結果……</p>`;
 
   try {
     const myVotes = await getAllMyVotes(code, participantId);

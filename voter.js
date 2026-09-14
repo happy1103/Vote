@@ -2,6 +2,7 @@ import {
   auth,
   db,
   ensureAuth,
+  makeParticipantId,
   normalizeCode,
   joinRoom,
   loadCandidateMap,
@@ -28,6 +29,7 @@ const finalPanel = document.querySelector("#finalPanel");
 const toast = document.querySelector("#toast");
 
 let uid = null;
+let participantId = null;
 let code = null;
 let roomData = null;
 let roundData = null;
@@ -61,7 +63,7 @@ async function join(codeToJoin) {
   joinBtn.disabled = true;
   joinError.textContent = "";
   try {
-    await joinRoom(codeToJoin, uid);
+    await joinRoom(codeToJoin, participantId, "voter");
     code = codeToJoin;
     candidates = await loadCandidateMap(code);
     roomCodeText.textContent = code;
@@ -127,7 +129,7 @@ function subscribeToRound(roundNumber) {
     roundNumber,
     async (snap) => {
       roundData = snap.exists() ? snap.data() : null;
-      myVote = await getMyVote(code, roundNumber, uid);
+      myVote = await getMyVote(code, roundNumber, participantId);
       renderRound();
     },
     (err) => {
@@ -178,12 +180,12 @@ function renderVoting(roundNumber) {
       });
 
       try {
-        await castVote(code, roundNumber, id, uid);
-        myVote = { choice: id, round: roundNumber, uid };
+        await castVote(code, roundNumber, id, participantId, "voter");
+        myVote = { choice: id, round: roundNumber, uid: participantId };
         showToast("投票成功");
       } catch (err) {
         voteInFlight = false;
-        myVote = await getMyVote(code, roundNumber, uid);
+        myVote = await getMyVote(code, roundNumber, participantId);
         if (myVote) {
           renderVoting(roundNumber);
           return;
@@ -234,7 +236,7 @@ async function renderFinal() {
   finalPanel.classList.remove("hidden");
   finalPanel.innerHTML = `<p class="center muted">正在整理你的投票結果……</p>`;
 
-  const myVotes = await getAllMyVotes(code, uid);
+  const myVotes = await getAllMyVotes(code, participantId);
   const rows = [];
   let same = 0;
   let counted = 0;
@@ -306,6 +308,7 @@ joinBtn.addEventListener("click", () => {
 (async () => {
   const user = await ensureAuth();
   uid = user.uid;
+  participantId = makeParticipantId(uid, "voter");
   const urlCode = normalizeCode(new URLSearchParams(location.search).get("room") || "");
   if (urlCode.length === 6) {
     roomCodeInput.value = urlCode;

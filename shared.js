@@ -67,14 +67,18 @@ export async function roomExists(code) {
   return snap.exists();
 }
 
-export async function joinRoom(code, uid) {
+export function makeParticipantId(authUid, role) {
+  return `${authUid}_${role === "host" ? "host" : "voter"}`;
+}
+
+export async function joinRoom(code, participantId, role = "voter") {
   const roomRef = doc(db, "sessions", code);
   const roomSnap = await getDoc(roomRef);
   if (!roomSnap.exists()) throw new Error("找不到這個場次代碼");
 
   await setDoc(
-    doc(db, "sessions", code, "participants", uid),
-    { uid, joinedAt: serverTimestamp() },
+    doc(db, "sessions", code, "participants", participantId),
+    { uid: participantId, role, joinedAt: serverTimestamp() },
     { merge: true }
   );
   return roomSnap.data();
@@ -95,16 +99,17 @@ export function subscribeRound(code, roundNumber, callback, onError) {
   return onSnapshot(doc(db, "sessions", code, "rounds", String(roundNumber)), callback, onError);
 }
 
-export async function getMyVote(code, roundNumber, uid) {
-  const voteId = `${roundNumber}_${uid}`;
+export async function getMyVote(code, roundNumber, participantId) {
+  const voteId = `${roundNumber}_${participantId}`;
   const snap = await getDoc(doc(db, "sessions", code, "votes", voteId));
   return snap.exists() ? snap.data() : null;
 }
 
-export async function castVote(code, roundNumber, choice, uid) {
-  const voteRef = doc(db, "sessions", code, "votes", `${roundNumber}_${uid}`);
+export async function castVote(code, roundNumber, choice, participantId, role = "voter") {
+  const voteRef = doc(db, "sessions", code, "votes", `${roundNumber}_${participantId}`);
   await setDoc(voteRef, {
-    uid,
+    uid: participantId,
+    role,
     round: roundNumber,
     choice,
     createdAt: serverTimestamp(),
@@ -125,10 +130,10 @@ export async function getParticipantCount(code) {
   return snap.size;
 }
 
-export async function getAllMyVotes(code, uid) {
+export async function getAllMyVotes(code, participantId) {
   const q = query(
     collection(db, "sessions", code, "votes"),
-    where("uid", "==", uid)
+    where("uid", "==", participantId)
   );
   const snap = await getDocs(q);
   const result = {};

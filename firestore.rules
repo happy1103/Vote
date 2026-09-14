@@ -17,10 +17,23 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/sessions/$(room)/rounds/$(roundNumber));
     }
 
+    function voterIdentity() {
+      return request.auth.uid + '_voter';
+    }
+
+    function hostIdentity() {
+      return request.auth.uid + '_host';
+    }
+
+    function ownsIdentity(room, identity) {
+      return signedIn()
+        && (identity == voterIdentity()
+            || (identity == hostIdentity() && isHost(room)));
+    }
+
     match /sessions/{room} {
       allow read: if signedIn();
 
-      // 只有建立者本人能建立，之後也只有主持人能修改場次。
       allow create: if signedIn()
                     && request.resource.data.hostUid == request.auth.uid
                     && request.resource.data.status == 'setup'
@@ -37,34 +50,52 @@ service cloud.firestore {
         allow create, update, delete: if isHost(room);
       }
 
-      match /participants/{participantUid} {
-        allow read: if isHost(room) || (signedIn() && participantUid == request.auth.uid);
-        allow create, update: if signedIn()
-                              && participantUid == request.auth.uid
-                              && request.resource.data.uid == request.auth.uid;
+      match /participants/{participantId} {
+        allow read: if isHost(room)
+                    || (signedIn()
+                        && (participantId == voterIdentity()
+                            || participantId == hostIdentity()));
+
+        allow create, update: if ownsIdentity(room, participantId)
+                              && request.resource.data.uid == participantId
+                              && ((participantId == voterIdentity()
+                                   && request.resource.data.role == 'voter')
+                                  || (participantId == hostIdentity()
+                                      && request.resource.data.role == 'host'));
+
         allow delete: if false;
       }
 
       match /votes/{voteId} {
-        // 一般投票者只能讀自己的票；主持人可以讀取全場票數來統計。
         allow read: if isHost(room)
-                    || (signedIn() && resource.data.uid == request.auth.uid);
+                    || (signedIn()
+                        && (resource.data.uid == voterIdentity()
+                            || resource.data.uid == hostIdentity()));
 
-        // 一個 uid 每階段只能建立一張固定 ID 的票，而且不能修改。
         allow create: if signedIn()
-          && request.resource.data.uid == request.auth.uid
+          && ownsIdentity(room, request.resource.data.uid)
+          && ((request.resource.data.uid == voterIdentity()
+               && request.resource.data.role == 'voter')
+              || (request.resource.data.uid == hostIdentity()
+                  && request.resource.data.role == 'host'))
           && request.resource.data.round is int
           && request.resource.data.round >= 1
           && request.resource.data.round <= 5
-          && ((request.resource.data.round == 1 && voteId == ('1_' + request.auth.uid))
-           || (request.resource.data.round == 2 && voteId == ('2_' + request.auth.uid))
-           || (request.resource.data.round == 3 && voteId == ('3_' + request.auth.uid))
-           || (request.resource.data.round == 4 && voteId == ('4_' + request.auth.uid))
-           || (request.resource.data.round == 5 && voteId == ('5_' + request.auth.uid)))
+          && ((request.resource.data.round == 1
+               && voteId == ('1_' + request.resource.data.uid))
+           || (request.resource.data.round == 2
+               && voteId == ('2_' + request.resource.data.uid))
+           || (request.resource.data.round == 3
+               && voteId == ('3_' + request.resource.data.uid))
+           || (request.resource.data.round == 4
+               && voteId == ('4_' + request.resource.data.uid))
+           || (request.resource.data.round == 5
+               && voteId == ('5_' + request.resource.data.uid)))
           && session(room).data.status == 'voting'
           && session(room).data.currentRound == request.resource.data.round
           && roundDoc(room, request.resource.data.round).data.status == 'voting'
-          && request.resource.data.choice in roundDoc(room, request.resource.data.round).data.options;
+          && request.resource.data.choice
+             in roundDoc(room, request.resource.data.round).data.options;
 
         allow update, delete: if false;
       }

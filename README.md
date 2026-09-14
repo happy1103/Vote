@@ -124,3 +124,7 @@ GitHub repository → Settings → Pages
 - 第 5 階段完成並由主持人結束場次後，主持人與投票者都會看到完整 5 階段最終結果。
 - 最終結果包含：自己的選擇、全體勝出項目、各候選項目的票數與百分比，以及比例長條圖。
 - Firestore Rules 本次不需修改。
+
+
+## Default 房間圖片
+在 GitHub 專案根目錄建立 `images` 資料夾，放入 `A.jpg` 到 `G.jpg`。主持人頁的「建立 default 房間」會直接使用這 7 張圖片。

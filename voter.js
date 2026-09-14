@@ -266,13 +266,17 @@ function buildFinalRoundCard({ round, mine, winner, options, totals, tieBreak })
   card.className = "final-round-card";
 
   const totalVotes = options.reduce((sum, id) => sum + (totals[id] || 0), 0);
-  const mineText = mine || "未投票";
-  const winnerText = winner || "—";
+  const mineVisual = mine && candidates[mine]
+    ? `<span class="choice-visual"><span class="choice-color candidate-${mine}"></span><img class="choice-thumb" src="${candidates[mine].imageData}" alt="你的選擇"></span>`
+    : `<span class="choice-empty">未投票</span>`;
+  const winnerVisual = winner && candidates[winner]
+    ? `<span class="choice-visual"><span class="choice-color candidate-${winner}"></span><img class="choice-thumb" src="${candidates[winner].imageData}" alt="全體結果"></span>`
+    : `<span class="choice-empty">—</span>`;
 
   card.innerHTML = `
     <h3>第 ${round} 階段</h3>
-    <div class="final-choice-line"><span>你的選擇</span><strong>${mine && candidates[mine] ? `<img class="choice-thumb" src="${candidates[mine].imageData}" alt="${mine}">` : ""}${mineText}</strong></div>
-    <div class="final-choice-line"><span>全體結果</span><strong>${winner && candidates[winner] ? `<img class="choice-thumb" src="${candidates[winner].imageData}" alt="${winner}">` : ""}${winnerText}${tieBreak ? '<small class="tie-note">同票抽選</small>' : ''}</strong></div>
+    <div class="final-choice-line"><span>你的選擇</span><strong>${mineVisual}</strong></div>
+    <div class="final-choice-line"><span>全體結果</span><strong>${winnerVisual}${tieBreak ? '<small class="tie-note">同票抽選</small>' : ''}</strong></div>
     <div class="final-bar" aria-label="第 ${round} 階段投票比例"></div>
     <div class="final-legend"></div>`;
 
@@ -286,15 +290,14 @@ function buildFinalRoundCard({ round, mine, winner, options, totals, tieBreak })
     const segment = document.createElement("div");
     segment.className = `final-bar-segment candidate-${id}`;
     segment.style.width = `${percent}%`;
-    segment.title = `${id}：${votes} 票（${formatPercent(votes, totalVotes)}）`;
-    if (percent >= 12) segment.textContent = id;
+    segment.title = `${votes} 票（${formatPercent(votes, totalVotes)}）`;
     bar.appendChild(segment);
 
     const item = document.createElement("div");
     item.className = "final-legend-item";
     item.innerHTML = `
       <span class="legend-swatch candidate-${id}"></span>
-      <strong>${id}</strong>
+      <img class="legend-thumb" src="${candidates[id]?.imageData || ""}" alt="候選圖片">
       <span>${votes} 票</span>
       <span>${formatPercent(votes, totalVotes)}</span>`;
     legend.appendChild(item);

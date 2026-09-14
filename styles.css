@@ -296,13 +296,12 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rg
 .final-legend { display: grid; gap: 7px; }
 .final-legend-item {
   display: grid;
-  grid-template-columns: 12px 24px 1fr auto;
+  grid-template-columns: 12px 42px 1fr auto;
   gap: 7px;
   align-items: center;
   font-size: 13px;
   color: var(--muted);
 }
-.final-legend-item strong { color: var(--text); }
 .legend-swatch { width: 10px; height: 10px; border-radius: 3px; }
 .candidate-A { background: #5875d9; }
 .candidate-B { background: #d35f6f; }
@@ -319,3 +318,24 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rg
   background: #eef1f4;
   border: 1px solid var(--border);
 }
+
+.legend-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #eef1f4;
+  border: 1px solid var(--border);
+}
+.choice-visual {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.choice-color {
+  width: 12px;
+  height: 42px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+.choice-empty { font-size: 14px; color: var(--muted); }

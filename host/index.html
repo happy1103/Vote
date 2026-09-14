@@ -15,10 +15,11 @@
 
     <section id="setupPanel" class="panel">
       <h2>建立新場次</h2>
-      <p class="muted small">請設定 A～G 七張圖片。圖片會在瀏覽器內自動縮小後存入 Firestore。</p>
+      <p class="muted small">請設定七張圖片，或直接建立 default 房間。default 會使用 GitHub 的 images/A.jpg～images/G.jpg。</p>
       <div id="imagePickerGrid" class="image-picker-grid"></div>
       <div class="stack" style="margin-top:14px">
         <button id="createRoomBtn" class="btn">建立場次</button>
+        <button id="createDefaultRoomBtn" class="btn secondary">建立 default 房間</button>
         <div id="setupMessage" class="small muted center"></div>
       </div>
     </section>

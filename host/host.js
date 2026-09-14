@@ -33,6 +33,7 @@ const setupPanel = document.querySelector("#setupPanel");
 const hostPanel = document.querySelector("#hostPanel");
 const imagePickerGrid = document.querySelector("#imagePickerGrid");
 const createRoomBtn = document.querySelector("#createRoomBtn");
+const createDefaultRoomBtn = document.querySelector("#createDefaultRoomBtn");
 const setupMessage = document.querySelector("#setupMessage");
 const hostRoomCode = document.querySelector("#hostRoomCode");
 const roundStat = document.querySelector("#roundStat");
@@ -142,15 +143,16 @@ async function generateRoomCode() {
   throw new Error("暫時無法產生場次代碼，請再試一次");
 }
 
-async function createRoom() {
-  const missing = CANDIDATE_IDS.filter((id) => !selectedImages[id]);
+async function createRoomFromImages(imageMap, { defaultRoom = false } = {}) {
+  const missing = CANDIDATE_IDS.filter((id) => !imageMap[id]);
   if (missing.length) {
     setupMessage.textContent = `還缺少：${missing.join("、")} 的圖片`;
     return;
   }
 
   createRoomBtn.disabled = true;
-  setupMessage.textContent = "正在建立場次……";
+  createDefaultRoomBtn.disabled = true;
+  setupMessage.textContent = defaultRoom ? "正在建立 default 房間……" : "正在建立場次……";
   try {
     const newCode = await generateRoomCode();
     await setDoc(doc(db, "sessions", newCode), {
@@ -158,13 +160,14 @@ async function createRoom() {
       status: "setup",
       currentRound: 1,
       createdAt: serverTimestamp(),
+      defaultRoom,
     });
 
     await Promise.all(
       CANDIDATE_IDS.map((id) =>
         setDoc(doc(db, "sessions", newCode, "candidates", id), {
           id,
-          imageData: selectedImages[id],
+          imageData: imageMap[id],
           createdAt: serverTimestamp(),
         })
       )
@@ -192,7 +195,38 @@ async function createRoom() {
     setupMessage.textContent = err?.message || "建立失敗";
   } finally {
     createRoomBtn.disabled = false;
+    createDefaultRoomBtn.disabled = false;
   }
+}
+
+async function createRoom() {
+  await createRoomFromImages(selectedImages);
+}
+
+async function createDefaultRoom() {
+  const imageMap = Object.fromEntries(
+    CANDIDATE_IDS.map((id) => [id, new URL(`../images/${id}.jpg`, location.href).href])
+  );
+
+  setupMessage.textContent = "正在確認 default 圖片……";
+  try {
+    const checks = await Promise.all(
+      CANDIDATE_IDS.map(async (id) => {
+        const response = await fetch(imageMap[id], { method: "HEAD", cache: "no-store" });
+        return response.ok ? null : id;
+      })
+    );
+    const missing = checks.filter(Boolean);
+    if (missing.length) {
+      setupMessage.textContent = `找不到 default 圖片：${missing.map((id) => `${id}.jpg`).join("、")}。請確認都放在 images 資料夾。`;
+      return;
+    }
+  } catch (_) {
+    setupMessage.textContent = "無法確認 default 圖片，請確認 images/A.jpg～images/G.jpg 已上傳後再試一次。";
+    return;
+  }
+
+  await createRoomFromImages(imageMap, { defaultRoom: true });
 }
 
 async function openHostRoom(roomCode) {
@@ -515,10 +549,17 @@ function buildHostFinalRoundCard({ round, mine, winner, options, totals, tieBrea
   card.className = "final-round-card";
   const totalVotes = options.reduce((sum, id) => sum + (totals[id] || 0), 0);
 
+  const mineVisual = mine && candidates[mine]
+    ? `<span class="choice-visual"><span class="choice-color candidate-${mine}"></span><img class="choice-thumb" src="${candidates[mine].imageData}" alt="你的選擇"></span>`
+    : `<span class="choice-empty">未投票</span>`;
+  const winnerVisual = winner && candidates[winner]
+    ? `<span class="choice-visual"><span class="choice-color candidate-${winner}"></span><img class="choice-thumb" src="${candidates[winner].imageData}" alt="全體結果"></span>`
+    : `<span class="choice-empty">—</span>`;
+
   card.innerHTML = `
     <h3>第 ${round} 階段</h3>
-    <div class="final-choice-line"><span>你的選擇</span><strong>${mine && candidates[mine] ? `<img class="choice-thumb" src="${candidates[mine].imageData}" alt="${mine}">` : ""}${mine || "未投票"}</strong></div>
-    <div class="final-choice-line"><span>全體結果</span><strong>${winner && candidates[winner] ? `<img class="choice-thumb" src="${candidates[winner].imageData}" alt="${winner}">` : ""}${winner || "—"}${tieBreak ? '<small class="tie-note">同票抽選</small>' : ''}</strong></div>
+    <div class="final-choice-line"><span>你的選擇</span><strong>${mineVisual}</strong></div>
+    <div class="final-choice-line"><span>全體結果</span><strong>${winnerVisual}${tieBreak ? '<small class="tie-note">同票抽選</small>' : ''}</strong></div>
     <div class="final-bar" aria-label="第 ${round} 階段投票比例"></div>
     <div class="final-legend"></div>`;
 
@@ -531,15 +572,14 @@ function buildHostFinalRoundCard({ round, mine, winner, options, totals, tieBrea
     const segment = document.createElement("div");
     segment.className = `final-bar-segment candidate-${id}`;
     segment.style.width = `${percent}%`;
-    segment.title = `${id}：${votes} 票（${formatPercent(votes, totalVotes)}）`;
-    if (percent >= 12) segment.textContent = id;
+    segment.title = `${votes} 票（${formatPercent(votes, totalVotes)}）`;
     bar.appendChild(segment);
 
     const item = document.createElement("div");
     item.className = "final-legend-item";
     item.innerHTML = `
       <span class="legend-swatch candidate-${id}"></span>
-      <strong>${id}</strong>
+      <img class="legend-thumb" src="${candidates[id]?.imageData || ""}" alt="候選圖片">
       <span>${votes} 票</span>
       <span>${formatPercent(votes, totalVotes)}</span>`;
     legend.appendChild(item);
@@ -561,6 +601,7 @@ newRoomBtn.addEventListener("click", () => {
 });
 
 createRoomBtn.addEventListener("click", createRoom);
+createDefaultRoomBtn.addEventListener("click", createDefaultRoom);
 
 (async () => {
   createPickers();

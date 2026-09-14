@@ -532,7 +532,7 @@ async function renderHostFinal() {
     hostVotePanel.innerHTML = `
       <div class="center final-heading">
         <h2>最終全體結果</h2>
-        <p class="muted">主持人的選擇與各階段全體勝出結果一致 ${same} / ${counted}</p>
+        <p class="muted">主持人的選擇命中全體結果 <strong>${counted ? Math.round((same / counted) * 100) : 0}%（${same}/${counted}）</strong></p>
       </div>
       <div id="hostFinalRoundList" class="final-round-list"></div>`;
 

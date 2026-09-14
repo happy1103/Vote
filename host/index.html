@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>主持人控制台｜即時投票</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <main class="page-shell">
+    <header class="brand">
+      <h1>主持人控制台</h1>
+      <p>建立場次、開放投票、公布結果</p>
+    </header>
+
+    <section id="setupPanel" class="panel">
+      <h2>建立新場次</h2>
+      <p class="muted small">請設定 A～G 七張圖片。圖片會在瀏覽器內自動縮小後存入 Firestore。</p>
+      <div id="imagePickerGrid" class="image-picker-grid"></div>
+      <div class="stack" style="margin-top:14px">
+        <button id="createRoomBtn" class="btn">建立場次</button>
+        <div id="setupMessage" class="small muted center"></div>
+      </div>
+    </section>
+
+    <section id="hostPanel" class="hidden">
+      <div class="panel center">
+        <div class="small muted">場次代碼</div>
+        <div id="hostRoomCode" class="room-code"></div>
+        <div class="row" style="justify-content:center;flex-wrap:wrap">
+          <button id="copyLinkBtn" class="btn secondary">複製投票連結</button>
+          <button id="newRoomBtn" class="btn secondary">建立另一場</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="host-grid">
+          <div class="host-stat"><div class="small muted">目前階段</div><div id="roundStat" class="value">-</div></div>
+          <div class="host-stat"><div class="small muted">已投票 / 已加入</div><div id="voteStat" class="value">-</div></div>
+        </div>
+        <div id="hostStatusText" class="center muted" style="margin-top:14px"></div>
+        <div id="hostActions" class="stack" style="margin-top:14px"></div>
+      </div>
+
+      <div id="hostVotePanel" class="panel"></div>
+      <div id="tiePanel" class="panel hidden"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script type="module" src="./host.js"></script>
+</body>
+</html>

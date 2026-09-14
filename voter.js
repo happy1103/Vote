@@ -281,10 +281,45 @@ async function renderFinal() {
       <h2>最終全體結果</h2>
       <p class="muted">你的選擇命中全體結果 <strong>${counted ? Math.round((same / counted) * 100) : 0}%（${same}/${counted}）</strong></p>
     </div>
-    <div id="finalRoundList" class="final-round-list"></div>`;
+    <div id="finalRoundList" class="final-round-list"></div>
+    <div class="center" style="margin-top:18px">
+      <button id="newGameBtn" class="btn" type="button">開啟新局</button>
+    </div>`;
 
   const list = finalPanel.querySelector("#finalRoundList");
   rows.forEach((row) => list.appendChild(buildFinalRoundCard(row)));
+
+  finalPanel.querySelector("#newGameBtn")?.addEventListener("click", returnToHome);
+}
+
+function returnToHome() {
+  unsubRoom?.();
+  unsubRound?.();
+  unsubRoom = null;
+  unsubRound = null;
+  currentRoundSubscribed = null;
+
+  code = null;
+  roomData = null;
+  roundData = null;
+  candidates = {};
+  myVote = null;
+  voteInFlight = false;
+
+  roomCodeInput.value = "";
+  joinError.textContent = "";
+  roomCodeText.textContent = "";
+  setStatus("");
+  mainPanel.innerHTML = "";
+  finalPanel.innerHTML = "";
+
+  roomPanel.classList.add("hidden");
+  finalPanel.classList.add("hidden");
+  mainPanel.classList.remove("hidden");
+  joinPanel.classList.remove("hidden");
+
+  history.replaceState(null, "", location.pathname);
+  roomCodeInput.focus();
 }
 
 function buildFinalRoundCard({ round, mine, winner, options, totals, tieBreak }) {

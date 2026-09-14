@@ -8,6 +8,7 @@ import {
   subscribeRoom,
   subscribeRound,
   getMyVote,
+  getAllMyVotes,
   castVote,
   getRoundVotes,
   getParticipantCount,
@@ -218,6 +219,7 @@ function subscribeHostRoom() {
     if (roomData.currentRound) subscribeHostRound(roomData.currentRound);
     await refreshStats();
     renderHostControls();
+    renderHostVote();
   });
 
   clearInterval(statTimer);
@@ -391,7 +393,7 @@ function renderHostVote() {
   }
 
   if (roomData.status === "finished") {
-    hostVotePanel.innerHTML = `<p class="center muted">投票已結束。</p>`;
+    renderHostFinal();
     return;
   }
 
@@ -456,6 +458,93 @@ function renderHostVote() {
       list.appendChild(wrap);
     });
   }
+}
+
+let hostFinalRenderKey = "";
+
+async function renderHostFinal() {
+  if (!code || !participantId) return;
+  const renderKey = `${code}:${roomData?.finishedAt?.seconds || "finished"}`;
+  if (hostFinalRenderKey === renderKey && hostVotePanel.querySelector("#hostFinalRoundList")) return;
+  hostFinalRenderKey = renderKey;
+
+  hostVotePanel.innerHTML = `<p class="center muted">正在整理最終投票結果……</p>`;
+
+  try {
+    const myVotes = await getAllMyVotes(code, participantId);
+    const rows = [];
+    let same = 0;
+    let counted = 0;
+
+    for (let round = 1; round <= 5; round++) {
+      const snap = await getDoc(doc(db, "sessions", code, "rounds", String(round)));
+      if (!snap.exists()) continue;
+      const data = snap.data();
+      const mine = myVotes[round];
+      if (mine) {
+        counted++;
+        if (mine === data.winner) same++;
+      }
+      rows.push({
+        round,
+        mine,
+        winner: data.winner,
+        options: data.options || [],
+        totals: data.totals || {},
+        tieBreak: !!data.tieBreak,
+      });
+    }
+
+    hostVotePanel.innerHTML = `
+      <div class="center final-heading">
+        <h2>最終全體結果</h2>
+        <p class="muted">主持人的選擇與各階段全體勝出結果一致 ${same} / ${counted}</p>
+      </div>
+      <div id="hostFinalRoundList" class="final-round-list"></div>`;
+
+    const list = hostVotePanel.querySelector("#hostFinalRoundList");
+    rows.forEach((row) => list.appendChild(buildHostFinalRoundCard(row)));
+  } catch (err) {
+    hostFinalRenderKey = "";
+    hostVotePanel.innerHTML = `<p class="center muted">最終結果讀取失敗，請重新整理頁面。</p>`;
+  }
+}
+
+function buildHostFinalRoundCard({ round, mine, winner, options, totals, tieBreak }) {
+  const card = document.createElement("section");
+  card.className = "final-round-card";
+  const totalVotes = options.reduce((sum, id) => sum + (totals[id] || 0), 0);
+
+  card.innerHTML = `
+    <h3>第 ${round} 階段</h3>
+    <div class="final-choice-line"><span>你的選擇</span><strong>${mine && candidates[mine] ? `<img class="choice-thumb" src="${candidates[mine].imageData}" alt="${mine}">` : ""}${mine || "未投票"}</strong></div>
+    <div class="final-choice-line"><span>全體結果</span><strong>${winner && candidates[winner] ? `<img class="choice-thumb" src="${candidates[winner].imageData}" alt="${winner}">` : ""}${winner || "—"}${tieBreak ? '<small class="tie-note">同票抽選</small>' : ''}</strong></div>
+    <div class="final-bar" aria-label="第 ${round} 階段投票比例"></div>
+    <div class="final-legend"></div>`;
+
+  const bar = card.querySelector(".final-bar");
+  const legend = card.querySelector(".final-legend");
+  options.forEach((id) => {
+    const votes = totals[id] || 0;
+    const percent = totalVotes ? (votes / totalVotes) * 100 : 0;
+
+    const segment = document.createElement("div");
+    segment.className = `final-bar-segment candidate-${id}`;
+    segment.style.width = `${percent}%`;
+    segment.title = `${id}：${votes} 票（${formatPercent(votes, totalVotes)}）`;
+    if (percent >= 12) segment.textContent = id;
+    bar.appendChild(segment);
+
+    const item = document.createElement("div");
+    item.className = "final-legend-item";
+    item.innerHTML = `
+      <span class="legend-swatch candidate-${id}"></span>
+      <strong>${id}</strong>
+      <span>${votes} 票</span>
+      <span>${formatPercent(votes, totalVotes)}</span>`;
+    legend.appendChild(item);
+  });
+  return card;
 }
 
 copyLinkBtn.addEventListener("click", async () => {
